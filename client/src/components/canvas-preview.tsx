@@ -108,8 +108,8 @@ export function CanvasPreview({
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <Card className="p-4">
+    <div className="flex flex-col gap-2 sm:gap-3 lg:gap-4">
+      <Card className="p-2 sm:p-3 lg:p-4">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3 min-w-0">
             <FileImage className="w-5 h-5 text-muted-foreground flex-shrink-0" />
@@ -169,7 +169,7 @@ export function CanvasPreview({
             "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px",
         }}
       >
-        <div className="flex items-center justify-center min-h-[400px] p-8 relative">
+        <div className="flex items-center justify-center min-h-[250px] sm:min-h-[350px] lg:min-h-[400px] p-2 sm:p-4 lg:p-8 relative">
           <div
             style={{
               transform: `scale(${zoom / 100})`,

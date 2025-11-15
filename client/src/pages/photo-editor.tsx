@@ -230,7 +230,7 @@ export default function PhotoEditor() {
       </header>
 
       <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+        <div className="max-w-7xl mx-auto p-2 sm:p-4 lg:p-6 space-y-3 sm:space-y-4 lg:space-y-6">
           {!state.originalUrl ? (
             <UploadZone onImageSelect={handleImageSelect} hasImage={false} />
           ) : (
@@ -262,11 +262,11 @@ export default function PhotoEditor() {
                   />
                 )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    <h2 className="text-lg font-semibold">Passport Size</h2>
+                    <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                    <h2 className="text-base sm:text-lg font-semibold">Passport Size</h2>
                   </div>
                   <PassportSizeSelector
                     selectedSize={state.passportSize}
@@ -276,9 +276,9 @@ export default function PhotoEditor() {
                   />
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                   <div className="flex items-center justify-between gap-2">
-                    <h2 className="text-lg font-semibold">Background</h2>
+                    <h2 className="text-base sm:text-lg font-semibold">Background</h2>
                     {state.backgroundRemoved && (
                       <Button
                         variant="ghost"
@@ -321,8 +321,8 @@ export default function PhotoEditor() {
                   )}
                 </div>
 
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Rotate & Flip</h2>
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
+                  <h2 className="text-base sm:text-lg font-semibold">Rotate & Flip</h2>
                   <CropRotateTools
                     onRotateLeft={handleRotateLeft}
                     onRotateRight={handleRotateRight}
@@ -335,12 +335,12 @@ export default function PhotoEditor() {
 
               <Separator />
 
-              <div className="space-y-4">
+              <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                 <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
                   <CollapsibleTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="w-full justify-between h-auto font-medium text-lg"
+                      className="w-full justify-between h-auto font-medium text-base sm:text-lg"
                       data-testid="button-toggle-advanced"
                     >
                       Advanced Adjustments
@@ -360,13 +360,13 @@ export default function PhotoEditor() {
 
               <Separator />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <h2 className="text-lg font-semibold">Download Photo</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
+                  <h2 className="text-base sm:text-lg font-semibold">Download Photo</h2>
                   <DownloadControls onDownload={handleDownload} disabled={!state.originalUrl} />
                 </div>
 
-                <div className="space-y-4 flex flex-col justify-end">
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4 flex flex-col justify-end">
                   <Button
                     variant="outline"
                     onClick={handleStartOver}

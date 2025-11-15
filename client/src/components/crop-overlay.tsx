@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Move } from "lucide-react";
 import type { PassportSize } from "@shared/schema";
 
@@ -21,7 +21,6 @@ export function CropOverlay({
 }: CropOverlayProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Calculate crop box dimensions maintaining passport aspect ratio
   const aspectRatio = passportSize.widthPx / passportSize.heightPx;
@@ -40,35 +39,64 @@ export function CropOverlay({
     cropHeight = cropWidth / aspectRatio;
   }
 
-  // Ensure crop box doesn't exceed image boundaries
-  const maxX = imageWidth - cropWidth;
-  const maxY = imageHeight - cropHeight;
+  // Ensure crop box fits within image
+  if (cropWidth > imageWidth) {
+    cropWidth = imageWidth;
+    cropHeight = cropWidth / aspectRatio;
+  }
+  if (cropHeight > imageHeight) {
+    cropHeight = imageHeight;
+    cropWidth = cropHeight * aspectRatio;
+  }
+
+  // Maximum position values to keep crop box within bounds
+  const maxX = Math.max(0, imageWidth - cropWidth);
+  const maxY = Math.max(0, imageHeight - cropHeight);
+
+  // Initialize crop position centered
+  useEffect(() => {
+    const centerX = (imageWidth - cropWidth) / 2;
+    const centerY = (imageHeight - cropHeight) / 2;
+    
+    if (cropPosition.x === 0 && cropPosition.y === 0) {
+      onCropPositionChange({ 
+        x: Math.max(0, Math.min(maxX, centerX)),
+        y: Math.max(0, Math.min(maxY, centerY))
+      });
+    }
+  }, [imageWidth, imageHeight, cropWidth, cropHeight, maxX, maxY]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - cropPosition.x * (zoom / 100),
-      y: e.clientY - cropPosition.y * (zoom / 100),
+      x: e.clientX - cropPosition.x,
+      y: e.clientY - cropPosition.y,
     });
-  }, [cropPosition, zoom]);
+  }, [cropPosition]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
+    e.preventDefault();
     setIsDragging(true);
     setDragStart({
-      x: e.touches[0].clientX - cropPosition.x * (zoom / 100),
-      y: e.touches[0].clientY - cropPosition.y * (zoom / 100),
+      x: e.touches[0].clientX - cropPosition.x,
+      y: e.touches[0].clientY - cropPosition.y,
     });
-  }, [cropPosition, zoom]);
+  }, [cropPosition]);
 
   useEffect(() => {
     const handleMove = (clientX: number, clientY: number) => {
       if (!isDragging) return;
 
-      const newX = Math.max(0, Math.min(maxX, (clientX - dragStart.x) / (zoom / 100)));
-      const newY = Math.max(0, Math.min(maxY, (clientY - dragStart.y) / (zoom / 100)));
+      const newX = clientX - dragStart.x;
+      const newY = clientY - dragStart.y;
 
-      onCropPositionChange({ x: newX, y: newY });
+      // Clamp position within bounds
+      const clampedX = Math.max(0, Math.min(maxX, newX));
+      const clampedY = Math.max(0, Math.min(maxY, newY));
+
+      onCropPositionChange({ x: clampedX, y: clampedY });
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -98,35 +126,44 @@ export function CropOverlay({
         document.removeEventListener("touchend", handleEnd);
       };
     }
-  }, [isDragging, dragStart, maxX, maxY, zoom, onCropPositionChange]);
+  }, [isDragging, dragStart, maxX, maxY, onCropPositionChange]);
 
   return (
     <div
-      ref={overlayRef}
       className="absolute inset-0 pointer-events-none"
       style={{
-        transform: `scale(${zoom / 100})`,
-        transformOrigin: "center",
+        width: `${imageWidth}px`,
+        height: `${imageHeight}px`,
       }}
     >
       {/* Dark overlay outside crop area */}
-      <div className="absolute inset-0 bg-black/50">
-        {/* Clear area for crop box */}
-        <div
-          className="absolute bg-transparent"
-          style={{
-            left: `${cropPosition.x}px`,
-            top: `${cropPosition.y}px`,
-            width: `${cropWidth}px`,
-            height: `${cropHeight}px`,
-            boxShadow: "0 0 0 9999px rgba(0, 0, 0, 0.5)",
-          }}
+      <svg
+        className="absolute inset-0 w-full h-full"
+        style={{ pointerEvents: 'none' }}
+      >
+        <defs>
+          <mask id="crop-mask">
+            <rect width="100%" height="100%" fill="white" />
+            <rect
+              x={cropPosition.x}
+              y={cropPosition.y}
+              width={cropWidth}
+              height={cropHeight}
+              fill="black"
+            />
+          </mask>
+        </defs>
+        <rect
+          width="100%"
+          height="100%"
+          fill="rgba(0, 0, 0, 0.6)"
+          mask="url(#crop-mask)"
         />
-      </div>
+      </svg>
 
       {/* Crop box border and handles */}
       <div
-        className="absolute border-2 border-primary pointer-events-auto cursor-move"
+        className="absolute border-2 border-primary pointer-events-auto cursor-move touch-none"
         style={{
           left: `${cropPosition.x}px`,
           top: `${cropPosition.y}px`,
@@ -139,7 +176,7 @@ export function CropOverlay({
         data-testid="crop-box"
       >
         {/* Grid lines */}
-        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
+        <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none">
           {Array.from({ length: 9 }).map((_, i) => (
             <div key={i} className="border border-primary/30" />
           ))}
@@ -147,28 +184,30 @@ export function CropOverlay({
 
         {/* Center move icon */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-primary text-primary-foreground rounded-full p-2">
-            <Move className="w-4 h-4" />
+          <div className="bg-primary text-primary-foreground rounded-full p-1.5 sm:p-2">
+            <Move className="w-3 h-3 sm:w-4 sm:h-4" />
           </div>
         </div>
 
         {/* Corner handles */}
-        <div className="absolute -left-1 -top-1 w-3 h-3 bg-primary rounded-full" />
-        <div className="absolute -right-1 -top-1 w-3 h-3 bg-primary rounded-full" />
-        <div className="absolute -left-1 -bottom-1 w-3 h-3 bg-primary rounded-full" />
-        <div className="absolute -right-1 -bottom-1 w-3 h-3 bg-primary rounded-full" />
+        <div className="absolute -left-1.5 -top-1.5 w-3 h-3 bg-primary rounded-full pointer-events-none" />
+        <div className="absolute -right-1.5 -top-1.5 w-3 h-3 bg-primary rounded-full pointer-events-none" />
+        <div className="absolute -left-1.5 -bottom-1.5 w-3 h-3 bg-primary rounded-full pointer-events-none" />
+        <div className="absolute -right-1.5 -bottom-1.5 w-3 h-3 bg-primary rounded-full pointer-events-none" />
       </div>
 
       {/* Passport size label */}
-      <div
-        className="absolute bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-medium pointer-events-none"
-        style={{
-          left: `${cropPosition.x}px`,
-          top: `${cropPosition.y - 30}px`,
-        }}
-      >
-        {passportSize.label}
-      </div>
+      {cropPosition.y > 35 && (
+        <div
+          className="absolute bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-medium pointer-events-none"
+          style={{
+            left: `${cropPosition.x}px`,
+            top: `${cropPosition.y - 30}px`,
+          }}
+        >
+          {passportSize.label}
+        </div>
+      )}
     </div>
   );
 }

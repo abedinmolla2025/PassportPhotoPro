@@ -1,15 +1,25 @@
 import { useState, useCallback, useEffect } from "react";
-import { Camera, HelpCircle, Menu } from "lucide-react";
+import { Camera, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UploadZone } from "@/components/upload-zone";
 import { CanvasPreview } from "@/components/canvas-preview";
-import { ToolsSidebar } from "@/components/tools-sidebar";
+import { PassportSizeSelector } from "@/components/passport-size-selector";
+import { BackgroundColorPicker } from "@/components/background-color-picker";
+import { AdjustmentSliders } from "@/components/adjustment-sliders";
+import { CropRotateTools } from "@/components/crop-rotate-tools";
+import { DownloadControls } from "@/components/download-controls";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { useToast } from "@/hooks/use-toast";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import { removeImageBackground } from "@/lib/image-processing";
 import { processAndDownloadImage } from "@/lib/api-client";
+import { Separator } from "@/components/ui/separator";
+import { Eraser, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import type { PassportSize, ExportFormat } from "@shared/schema";
 import { PASSPORT_SIZES } from "@shared/schema";
 
@@ -20,6 +30,7 @@ export default function PhotoEditor() {
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -203,114 +214,171 @@ export default function PhotoEditor() {
 
   const displayUrl = state.processedUrl || state.originalUrl;
 
-  const sidebarContent = (
-    <ToolsSidebar
-      passportSize={state.passportSize}
-      onPassportSizeChange={(size: PassportSize) =>
-        updateState({ passportSize: size })
-      }
-      backgroundColor={state.backgroundColor}
-      onBackgroundColorChange={(color: string) =>
-        updateState({ backgroundColor: color })
-      }
-      adjustments={state.adjustments}
-      onAdjustmentsChange={(adjustments) => updateState({ adjustments })}
-      onRemoveBackground={handleRemoveBackground}
-      onResetBackground={handleResetBackground}
-      onRotateLeft={handleRotateLeft}
-      onRotateRight={handleRotateRight}
-      onFlipHorizontal={handleFlipHorizontal}
-      onFlipVertical={handleFlipVertical}
-      onDownload={handleDownload}
-      onStartOver={handleStartOver}
-      isProcessing={isProcessing}
-      backgroundRemoved={state.backgroundRemoved}
-      hasImage={!!state.originalUrl}
-    />
-  );
-
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      {!state.originalUrl && (
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
-            <div className="flex items-center gap-2 lg:gap-3">
-              <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
-              <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" data-testid="button-help">
-                <HelpCircle className="w-5 h-5" />
-              </Button>
-            </div>
-          </header>
-
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
-            <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
-              <UploadZone onImageSelect={handleImageSelect} hasImage={false} />
-            </div>
-          </main>
+    <div className="flex flex-col h-screen overflow-hidden bg-background">
+      <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
+        <div className="flex items-center gap-2 lg:gap-3">
+          <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
+          <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" data-testid="button-help">
+            <HelpCircle className="w-5 h-5" />
+          </Button>
+        </div>
+      </header>
 
-      {state.originalUrl && (
-        <>
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
-              <div className="flex items-center gap-2 lg:gap-3">
-                <Sheet>
-                  <SheetTrigger asChild className="lg:hidden">
-                    <Button variant="ghost" size="icon" data-testid="button-menu">
-                      <Menu className="w-5 h-5" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="p-0 w-full sm:w-80 sm:max-w-80">
-                    {sidebarContent}
-                  </SheetContent>
-                </Sheet>
-                <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
-                <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" data-testid="button-help">
-                  <HelpCircle className="w-5 h-5" />
-                </Button>
-              </div>
-            </header>
+      <main className="flex-1 overflow-auto">
+        <div className="max-w-7xl mx-auto p-4 lg:p-6 space-y-6">
+          {!state.originalUrl ? (
+            <UploadZone onImageSelect={handleImageSelect} hasImage={false} />
+          ) : (
+            <>
+              <CanvasPreview
+                imageUrl={displayUrl}
+                fileName={state.originalFile?.name}
+                dimensions={state.dimensions || undefined}
+                fileSize={state.originalFile?.size}
+                adjustments={state.adjustments}
+                backgroundColor={state.backgroundColor}
+                backgroundRemoved={state.backgroundRemoved}
+                onRemoveImage={handleRemoveImage}
+                onDownload={() => handleDownload("jpeg", 90)}
+                rotation={state.rotation}
+                flipped={state.flipped}
+                canvasRef={canvasRef}
+              />
 
-            <main className="flex-1 overflow-auto p-4 lg:p-6">
-              <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
-                <CanvasPreview
-                  imageUrl={displayUrl}
-                  fileName={state.originalFile?.name}
-                  dimensions={state.dimensions || undefined}
-                  fileSize={state.originalFile?.size}
-                  adjustments={state.adjustments}
-                  backgroundColor={state.backgroundColor}
-                  backgroundRemoved={state.backgroundRemoved}
-                  onRemoveImage={handleRemoveImage}
-                  onDownload={() => handleDownload("jpeg", 90)}
-                  rotation={state.rotation}
-                  flipped={state.flipped}
-                  canvasRef={canvasRef}
-                />
-                {showComparison &&
-                  state.originalUrl &&
-                  state.processedUrl && (
-                    <BeforeAfterSlider
-                      beforeUrl={state.originalUrl}
-                      afterUrl={state.processedUrl}
+              {showComparison &&
+                state.originalUrl &&
+                state.processedUrl && (
+                  <BeforeAfterSlider
+                    beforeUrl={state.originalUrl}
+                    afterUrl={state.processedUrl}
+                  />
+                )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    <h2 className="text-lg font-semibold">Passport Size</h2>
+                  </div>
+                  <PassportSizeSelector
+                    selectedSize={state.passportSize}
+                    onSizeChange={(size: PassportSize) =>
+                      updateState({ passportSize: size })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-lg font-semibold">Background</h2>
+                    {state.backgroundRemoved && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleResetBackground}
+                        className="h-8 gap-1"
+                        data-testid="button-reset-background"
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        Reset
+                      </Button>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleRemoveBackground}
+                    disabled={!state.originalUrl || isProcessing}
+                    className="w-full gap-2"
+                    variant={state.backgroundRemoved ? "secondary" : "default"}
+                    data-testid="button-remove-background"
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Eraser className="w-4 h-4" />
+                        {state.backgroundRemoved ? "Background Removed" : "Remove Background"}
+                      </>
+                    )}
+                  </Button>
+                  {state.backgroundRemoved && (
+                    <BackgroundColorPicker
+                      selectedColor={state.backgroundColor}
+                      onColorChange={(color: string) =>
+                        updateState({ backgroundColor: color })
+                      }
                     />
                   )}
-              </div>
-            </main>
-          </div>
+                </div>
 
-          <div className="w-80 flex-shrink-0 hidden lg:block">
-            {sidebarContent}
-          </div>
-        </>
-      )}
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">Rotate & Flip</h2>
+                  <CropRotateTools
+                    onRotateLeft={handleRotateLeft}
+                    onRotateRight={handleRotateRight}
+                    onFlipHorizontal={handleFlipHorizontal}
+                    onFlipVertical={handleFlipVertical}
+                    disabled={!state.originalUrl}
+                  />
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-between h-auto font-medium text-lg"
+                      data-testid="button-toggle-advanced"
+                    >
+                      Advanced Adjustments
+                      <span className="text-sm text-muted-foreground">
+                        {advancedOpen ? "Hide" : "Show"}
+                      </span>
+                    </Button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="pt-4">
+                    <AdjustmentSliders
+                      adjustments={state.adjustments}
+                      onAdjustmentsChange={(adjustments) => updateState({ adjustments })}
+                    />
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
+
+              <Separator />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <h2 className="text-lg font-semibold">Download Photo</h2>
+                  <DownloadControls onDownload={handleDownload} disabled={!state.originalUrl} />
+                </div>
+
+                <div className="space-y-4 flex flex-col justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={handleStartOver}
+                    disabled={!state.originalUrl}
+                    className="w-full"
+                    size="lg"
+                    data-testid="button-start-over"
+                  >
+                    Start Over
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </main>
     </div>
   );
 }

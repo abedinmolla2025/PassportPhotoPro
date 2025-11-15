@@ -196,7 +196,7 @@ export function CanvasPreview({
                 height: "auto",
               }}
             />
-            {imageLoaded && dimensions && passportSize.widthPx > 0 && (
+            {imageLoaded && dimensions && passportSize.widthPx > 0 && backgroundRemoved && (
               <CropOverlay
                 imageWidth={dimensions.width}
                 imageHeight={dimensions.height}

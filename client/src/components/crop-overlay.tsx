@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Move } from "lucide-react";
 import type { PassportSize } from "@shared/schema";
 
@@ -9,6 +9,7 @@ interface CropOverlayProps {
   cropPosition: { x: number; y: number };
   onCropPositionChange: (position: { x: number; y: number }) => void;
   zoom: number;
+  canvasRef: React.RefObject<HTMLCanvasElement>;
 }
 
 export function CropOverlay({
@@ -18,9 +19,41 @@ export function CropOverlay({
   cropPosition,
   onCropPositionChange,
   zoom,
+  canvasRef,
 }: CropOverlayProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [displaySize, setDisplaySize] = useState({ width: 0, height: 0 });
+  const overlayRef = useRef<HTMLDivElement>(null);
+
+  // Calculate displayed canvas size
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    const updateDisplaySize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      setDisplaySize({
+        width: rect.width,
+        height: rect.height,
+      });
+    };
+
+    updateDisplaySize();
+    
+    // Update on resize
+    const resizeObserver = new ResizeObserver(updateDisplaySize);
+    resizeObserver.observe(canvasRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [canvasRef, imageWidth, imageHeight]);
+
+  // Calculate scale factor between actual and displayed size
+  const scale = displaySize.width > 0 ? displaySize.width / imageWidth : 1;
 
   // Calculate crop box dimensions maintaining passport aspect ratio
   const aspectRatio = passportSize.widthPx / passportSize.heightPx;
@@ -30,11 +63,9 @@ export function CropOverlay({
   
   // Fit the crop box within the image while maintaining aspect ratio
   if (imageWidth / imageHeight > aspectRatio) {
-    // Image is wider - fit to height
     cropHeight = Math.min(imageHeight * 0.7, imageHeight);
     cropWidth = cropHeight * aspectRatio;
   } else {
-    // Image is taller - fit to width
     cropWidth = Math.min(imageWidth * 0.7, imageWidth);
     cropHeight = cropWidth / aspectRatio;
   }
@@ -48,6 +79,10 @@ export function CropOverlay({
     cropHeight = imageHeight;
     cropWidth = cropHeight * aspectRatio;
   }
+
+  // Scale to display size
+  const displayCropWidth = cropWidth * scale;
+  const displayCropHeight = cropHeight * scale;
 
   // Maximum position values to keep crop box within bounds
   const maxX = Math.max(0, imageWidth - cropWidth);
@@ -70,27 +105,27 @@ export function CropOverlay({
     e.preventDefault();
     setIsDragging(true);
     setDragStart({
-      x: e.clientX - cropPosition.x,
-      y: e.clientY - cropPosition.y,
+      x: e.clientX - cropPosition.x * scale,
+      y: e.clientY - cropPosition.y * scale,
     });
-  }, [cropPosition]);
+  }, [cropPosition, scale]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
     e.preventDefault();
     setIsDragging(true);
     setDragStart({
-      x: e.touches[0].clientX - cropPosition.x,
-      y: e.touches[0].clientY - cropPosition.y,
+      x: e.touches[0].clientX - cropPosition.x * scale,
+      y: e.touches[0].clientY - cropPosition.y * scale,
     });
-  }, [cropPosition]);
+  }, [cropPosition, scale]);
 
   useEffect(() => {
     const handleMove = (clientX: number, clientY: number) => {
       if (!isDragging) return;
 
-      const newX = clientX - dragStart.x;
-      const newY = clientY - dragStart.y;
+      const newX = (clientX - dragStart.x) / scale;
+      const newY = (clientY - dragStart.y) / scale;
 
       // Clamp position within bounds
       const clampedX = Math.max(0, Math.min(maxX, newX));
@@ -126,14 +161,22 @@ export function CropOverlay({
         document.removeEventListener("touchend", handleEnd);
       };
     }
-  }, [isDragging, dragStart, maxX, maxY, onCropPositionChange]);
+  }, [isDragging, dragStart, maxX, maxY, scale, onCropPositionChange]);
+
+  if (displaySize.width === 0 || displaySize.height === 0) {
+    return null;
+  }
+
+  const displayX = cropPosition.x * scale;
+  const displayY = cropPosition.y * scale;
 
   return (
     <div
+      ref={overlayRef}
       className="absolute inset-0 pointer-events-none"
       style={{
-        width: `${imageWidth}px`,
-        height: `${imageHeight}px`,
+        width: `${displaySize.width}px`,
+        height: `${displaySize.height}px`,
       }}
     >
       {/* Dark overlay outside crop area */}
@@ -145,10 +188,10 @@ export function CropOverlay({
           <mask id="crop-mask">
             <rect width="100%" height="100%" fill="white" />
             <rect
-              x={cropPosition.x}
-              y={cropPosition.y}
-              width={cropWidth}
-              height={cropHeight}
+              x={displayX}
+              y={displayY}
+              width={displayCropWidth}
+              height={displayCropHeight}
               fill="black"
             />
           </mask>
@@ -165,10 +208,10 @@ export function CropOverlay({
       <div
         className="absolute border-2 border-primary pointer-events-auto cursor-move touch-none"
         style={{
-          left: `${cropPosition.x}px`,
-          top: `${cropPosition.y}px`,
-          width: `${cropWidth}px`,
-          height: `${cropHeight}px`,
+          left: `${displayX}px`,
+          top: `${displayY}px`,
+          width: `${displayCropWidth}px`,
+          height: `${displayCropHeight}px`,
           boxShadow: "0 0 0 1px rgba(255, 255, 255, 0.5)",
         }}
         onMouseDown={handleMouseDown}
@@ -197,12 +240,12 @@ export function CropOverlay({
       </div>
 
       {/* Passport size label */}
-      {cropPosition.y > 35 && (
+      {displayY > 35 && (
         <div
           className="absolute bg-primary text-primary-foreground px-2 py-1 rounded-md text-xs font-medium pointer-events-none"
           style={{
-            left: `${cropPosition.x}px`,
-            top: `${cropPosition.y - 30}px`,
+            left: `${displayX}px`,
+            top: `${displayY - 30}px`,
           }}
         >
           {passportSize.label}

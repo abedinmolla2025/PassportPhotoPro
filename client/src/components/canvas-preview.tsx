@@ -204,6 +204,7 @@ export function CanvasPreview({
                 cropPosition={cropPosition}
                 onCropPositionChange={onCropPositionChange}
                 zoom={zoom}
+                canvasRef={canvasRef}
               />
             )}
           </div>

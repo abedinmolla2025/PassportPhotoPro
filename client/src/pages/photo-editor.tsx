@@ -25,8 +25,9 @@ import { PASSPORT_SIZES } from "@shared/schema";
 
 export default function PhotoEditor() {
   const { toast } = useToast();
+  const indiaSize = PASSPORT_SIZES.find(s => s.id === "india-standard") || PASSPORT_SIZES[0];
   const { state, setImage, setBackgroundRemoved, updateState, reset, canvasRef } =
-    useImageEditor(PASSPORT_SIZES[0]);
+    useImageEditor(indiaSize);
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);

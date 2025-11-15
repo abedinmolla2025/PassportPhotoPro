@@ -231,39 +231,55 @@ export default function PhotoEditor() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <div className="w-80 flex-shrink-0 hidden lg:block">
-        {sidebarContent}
-      </div>
+      {!state.originalUrl && (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
+            <div className="flex items-center gap-2 lg:gap-3">
+              <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
+              <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" size="icon" data-testid="button-help">
+                <HelpCircle className="w-5 h-5" />
+              </Button>
+            </div>
+          </header>
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
-          <div className="flex items-center gap-2 lg:gap-3">
-            <Sheet>
-              <SheetTrigger asChild className="lg:hidden">
-                <Button variant="ghost" size="icon" data-testid="button-menu">
-                  <Menu className="w-5 h-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-full sm:w-80 sm:max-w-80">
-                {sidebarContent}
-              </SheetContent>
-            </Sheet>
-            <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
-            <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" data-testid="button-help">
-              <HelpCircle className="w-5 h-5" />
-            </Button>
-          </div>
-        </header>
-
-        <main className="flex-1 overflow-auto p-4 lg:p-6">
-          <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
-            {!state.originalUrl ? (
+          <main className="flex-1 overflow-auto p-4 lg:p-6">
+            <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
               <UploadZone onImageSelect={handleImageSelect} hasImage={false} />
-            ) : (
-              <>
+            </div>
+          </main>
+        </div>
+      )}
+
+      {state.originalUrl && (
+        <>
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <header className="h-16 border-b bg-background flex items-center justify-between px-4 lg:px-6 flex-shrink-0">
+              <div className="flex items-center gap-2 lg:gap-3">
+                <Sheet>
+                  <SheetTrigger asChild className="lg:hidden">
+                    <Button variant="ghost" size="icon" data-testid="button-menu">
+                      <Menu className="w-5 h-5" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="p-0 w-full sm:w-80 sm:max-w-80">
+                    {sidebarContent}
+                  </SheetContent>
+                </Sheet>
+                <Camera className="w-5 h-5 lg:w-6 lg:h-6 text-primary" />
+                <h1 className="text-lg lg:text-xl font-semibold">Photo Passport Editor</h1>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" data-testid="button-help">
+                  <HelpCircle className="w-5 h-5" />
+                </Button>
+              </div>
+            </header>
+
+            <main className="flex-1 overflow-auto p-4 lg:p-6">
+              <div className="max-w-6xl mx-auto space-y-4 lg:space-y-6">
                 <CanvasPreview
                   imageUrl={displayUrl}
                   fileName={state.originalFile?.name}
@@ -286,11 +302,15 @@ export default function PhotoEditor() {
                       afterUrl={state.processedUrl}
                     />
                   )}
-              </>
-            )}
+              </div>
+            </main>
           </div>
-        </main>
-      </div>
+
+          <div className="w-80 flex-shrink-0 hidden lg:block">
+            {sidebarContent}
+          </div>
+        </>
+      )}
     </div>
   );
 }

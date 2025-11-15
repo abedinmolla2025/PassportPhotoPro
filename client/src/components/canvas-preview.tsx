@@ -169,11 +169,13 @@ export function CanvasPreview({
             "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px",
         }}
       >
-        <div className="flex items-center justify-center min-h-[250px] sm:min-h-[350px] lg:min-h-[400px] p-2 sm:p-4 lg:p-8 relative">
+        <div className="flex items-center justify-center min-h-[250px] sm:min-h-[350px] lg:min-h-[400px] max-h-[400px] sm:max-h-[500px] lg:max-h-[600px] p-2 sm:p-4 lg:p-8 relative">
           <div
             style={{
               transform: `scale(${zoom / 100})`,
               transformOrigin: "center",
+              maxWidth: "100%",
+              maxHeight: "100%",
             }}
             className="transition-transform relative"
           >
@@ -184,9 +186,15 @@ export function CanvasPreview({
             )}
             <canvas
               ref={canvasRef}
-              className="max-w-full h-auto shadow-lg rounded-md"
+              className="shadow-lg rounded-md"
               data-testid="canvas-preview"
-              style={{ display: imageLoaded ? "block" : "none" }}
+              style={{ 
+                display: imageLoaded ? "block" : "none",
+                maxWidth: "100%",
+                maxHeight: "350px",
+                width: "auto",
+                height: "auto",
+              }}
             />
             {imageLoaded && dimensions && passportSize.widthPx > 0 && (
               <CropOverlay

@@ -12,6 +12,7 @@ export interface ImageEditorState {
   backgroundRemoved: boolean;
   rotation: number;
   flipped: { horizontal: boolean; vertical: boolean };
+  cropPosition: { x: number; y: number };
 }
 
 export function useImageEditor(initialPassportSize: PassportSize) {
@@ -26,6 +27,7 @@ export function useImageEditor(initialPassportSize: PassportSize) {
     backgroundRemoved: false,
     rotation: 0,
     flipped: { horizontal: false, vertical: false },
+    cropPosition: { x: 0, y: 0 },
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -42,6 +44,7 @@ export function useImageEditor(initialPassportSize: PassportSize) {
         backgroundRemoved: false,
         rotation: 0,
         flipped: { horizontal: false, vertical: false },
+        cropPosition: { x: 0, y: 0 },
       }));
     };
     img.src = url;
@@ -80,6 +83,7 @@ export function useImageEditor(initialPassportSize: PassportSize) {
       backgroundRemoved: false,
       rotation: 0,
       flipped: { horizontal: false, vertical: false },
+      cropPosition: { x: 0, y: 0 },
     });
   }, [state.originalUrl, state.processedUrl, initialPassportSize]);
 

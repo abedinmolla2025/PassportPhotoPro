@@ -247,6 +247,9 @@ export default function PhotoEditor() {
                 rotation={state.rotation}
                 flipped={state.flipped}
                 canvasRef={canvasRef}
+                passportSize={state.passportSize}
+                cropPosition={state.cropPosition}
+                onCropPositionChange={(position) => updateState({ cropPosition: position })}
               />
 
               {showComparison &&

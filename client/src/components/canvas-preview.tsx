@@ -3,7 +3,8 @@ import { ZoomIn, ZoomOut, Trash2, FileImage } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import type { ImageAdjustments } from "@shared/schema";
+import { CropOverlay } from "@/components/crop-overlay";
+import type { ImageAdjustments, PassportSize } from "@shared/schema";
 
 interface CanvasPreviewProps {
   imageUrl: string | null;
@@ -19,6 +20,9 @@ interface CanvasPreviewProps {
   flipped?: { horizontal: boolean; vertical: boolean };
   canvasRef: React.RefObject<HTMLCanvasElement>;
   showBeforeAfter?: boolean;
+  passportSize: PassportSize;
+  cropPosition: { x: number; y: number };
+  onCropPositionChange: (position: { x: number; y: number }) => void;
 }
 
 export function CanvasPreview({
@@ -35,6 +39,9 @@ export function CanvasPreview({
   flipped = { horizontal: false, vertical: false },
   canvasRef,
   showBeforeAfter = false,
+  passportSize,
+  cropPosition,
+  onCropPositionChange,
 }: CanvasPreviewProps) {
   const [zoom, setZoom] = useState(100);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -156,19 +163,19 @@ export function CanvasPreview({
       </Card>
 
       <div
-        className="overflow-auto rounded-xl border bg-card"
+        className="overflow-auto rounded-xl border bg-card relative"
         style={{
           backgroundImage:
             "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, hsl(var(--background)) 0% 50%) 50% / 20px 20px",
         }}
       >
-        <div className="flex items-center justify-center min-h-[400px] p-8">
+        <div className="flex items-center justify-center min-h-[400px] p-8 relative">
           <div
             style={{
               transform: `scale(${zoom / 100})`,
               transformOrigin: "center",
             }}
-            className="transition-transform"
+            className="transition-transform relative"
           >
             {!imageLoaded && (
               <div className="flex items-center justify-center p-8">
@@ -181,6 +188,16 @@ export function CanvasPreview({
               data-testid="canvas-preview"
               style={{ display: imageLoaded ? "block" : "none" }}
             />
+            {imageLoaded && dimensions && passportSize.widthPx > 0 && (
+              <CropOverlay
+                imageWidth={dimensions.width}
+                imageHeight={dimensions.height}
+                passportSize={passportSize}
+                cropPosition={cropPosition}
+                onCropPositionChange={onCropPositionChange}
+                zoom={zoom}
+              />
+            )}
           </div>
         </div>
       </div>

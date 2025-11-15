@@ -1,12 +1,25 @@
-import { removeBackground } from "@imgly/background-removal";
+import { removeBackground, Config } from "@imgly/background-removal";
 
 export async function removeImageBackground(imageUrl: string): Promise<string> {
   try {
-    const blob = await removeBackground(imageUrl);
+    // Configure for better quality
+    const config: Config = {
+      publicPath: "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/dist/",
+      model: "isnet_fp16", // Use higher quality model for better results
+      output: {
+        format: "image/png",
+        quality: 1.0, // Maximum quality
+      },
+      progress: (key, current, total) => {
+        console.log(`Background removal progress: ${key} ${current}/${total}`);
+      }
+    };
+
+    const blob = await removeBackground(imageUrl, config);
     return URL.createObjectURL(blob);
   } catch (error) {
     console.error("Background removal error:", error);
-    throw new Error("Failed to remove background");
+    throw new Error("Failed to remove background. Please try again with a different image.");
   }
 }
 

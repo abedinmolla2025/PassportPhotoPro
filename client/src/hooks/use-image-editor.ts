@@ -16,6 +16,7 @@ export interface ImageEditorState {
   cropPosition: { x: number; y: number };
   printSheet: PrintSheet | null;
   printSheetEnabled: boolean;
+  printSheetPreviewUrl: string | null;
 }
 
 export function useImageEditor(initialPassportSize: PassportSize) {
@@ -33,6 +34,7 @@ export function useImageEditor(initialPassportSize: PassportSize) {
     cropPosition: { x: 0, y: 0 },
     printSheet: PRINT_SHEET_SIZES[2],
     printSheetEnabled: false,
+    printSheetPreviewUrl: null,
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -77,6 +79,9 @@ export function useImageEditor(initialPassportSize: PassportSize) {
     if (state.processedUrl) {
       URL.revokeObjectURL(state.processedUrl);
     }
+    if (state.printSheetPreviewUrl) {
+      URL.revokeObjectURL(state.printSheetPreviewUrl);
+    }
     setState({
       originalFile: null,
       originalUrl: null,
@@ -91,8 +96,9 @@ export function useImageEditor(initialPassportSize: PassportSize) {
       cropPosition: { x: 0, y: 0 },
       printSheet: PRINT_SHEET_SIZES[2],
       printSheetEnabled: false,
+      printSheetPreviewUrl: null,
     });
-  }, [state.originalUrl, state.processedUrl, initialPassportSize]);
+  }, [state.originalUrl, state.processedUrl, state.printSheetPreviewUrl, initialPassportSize]);
 
   return {
     state,

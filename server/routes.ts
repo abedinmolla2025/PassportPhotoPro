@@ -178,6 +178,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Print sheet preview endpoint - inline preview with lower quality for faster generation
+  app.post("/api/print-sheet/preview", upload.single("image"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const {
+        passportWidthPx,
+        passportHeightPx,
+        sheetWidthPx,
+        sheetHeightPx,
+        backgroundColor,
+        brightness,
+        contrast,
+        saturation,
+        rotation,
+        flipHorizontal,
+        flipVertical,
+      } = req.body;
+
+      if (!passportWidthPx || !passportHeightPx || !sheetWidthPx || !sheetHeightPx) {
+        return res.status(400).json({ error: "Passport and sheet dimensions are required" });
+      }
+
+      const pWidth = Math.round(parseInt(passportWidthPx) * 0.5);
+      const pHeight = Math.round(parseInt(passportHeightPx) * 0.5);
+      const sWidth = Math.round(parseInt(sheetWidthPx) * 0.5);
+      const sHeight = Math.round(parseInt(sheetHeightPx) * 0.5);
+      const margin = 10;
+      const spacing = 8;
+
+      const cols = Math.floor((sWidth - margin * 2 + spacing) / (pWidth + spacing));
+      const rows = Math.floor((sHeight - margin * 2 + spacing) / (pHeight + spacing));
+
+      if (cols < 1 || rows < 1) {
+        return res.status(400).json({ 
+          error: "Passport photo is too large for the selected sheet size." 
+        });
+      }
+
+      const brightnessVal = parseNumber(brightness, 0);
+      const contrastVal = parseNumber(contrast, 0);
+      const saturationVal = parseNumber(saturation, 0);
+      const rotationVal = parseNumber(rotation, 0);
+      const flipH = parseBoolean(flipHorizontal);
+      const flipV = parseBoolean(flipVertical);
+
+      let passportPipeline = sharp(req.file.buffer);
+
+      if (rotationVal !== 0) {
+        passportPipeline = passportPipeline.rotate(rotationVal);
+      }
+
+      if (flipV || flipH) {
+        if (flipV) {
+          passportPipeline = passportPipeline.flip();
+        }
+        if (flipH) {
+          passportPipeline = passportPipeline.flop();
+        }
+      }
+
+      passportPipeline = passportPipeline.resize(pWidth, pHeight, {
+        fit: "contain",
+        background: backgroundColor || "transparent",
+      });
+
+      if (brightnessVal !== 0 || saturationVal !== 0) {
+        const brightnessMultiplier = 1 + brightnessVal / 100;
+        passportPipeline = passportPipeline.modulate({
+          brightness: brightnessMultiplier,
+          saturation: 1 + saturationVal / 100,
+        });
+      }
+
+      if (contrastVal !== 0) {
+        const contrastMultiplier = 1 + contrastVal / 100;
+        passportPipeline = passportPipeline.linear(
+          contrastMultiplier,
+          -(128 * contrastMultiplier) + 128
+        );
+      }
+
+      if (backgroundColor) {
+        passportPipeline = passportPipeline.flatten({ background: backgroundColor });
+      }
+
+      const passportImage = await passportPipeline.toBuffer();
+
+      const availableWidth = cols * pWidth + (cols - 1) * spacing;
+      const availableHeight = rows * pHeight + (rows - 1) * spacing;
+      const startX = Math.floor((sWidth - availableWidth) / 2);
+      const startY = Math.floor((sHeight - availableHeight) / 2);
+
+      const composites = [];
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = startX + col * (pWidth + spacing);
+          const y = startY + row * (pHeight + spacing);
+          composites.push({
+            input: passportImage,
+            top: y,
+            left: x,
+          });
+        }
+      }
+
+      let pipeline = sharp({
+        create: {
+          width: sWidth,
+          height: sHeight,
+          channels: 4,
+          background: backgroundColor || { r: 0, g: 0, b: 0, alpha: 0 },
+        },
+      }).composite(composites);
+
+      if (backgroundColor) {
+        pipeline = pipeline.flatten({ background: backgroundColor });
+      }
+
+      pipeline = pipeline.jpeg({ quality: 60 });
+
+      const sheetBuffer = await pipeline.toBuffer();
+
+      res.set({
+        "Content-Type": "image/jpeg",
+        "Content-Length": sheetBuffer.length,
+        "Cache-Control": "no-cache",
+      });
+
+      res.send(sheetBuffer);
+    } catch (error) {
+      console.error("Print sheet preview error:", error);
+      res.status(500).json({ error: "Failed to create print sheet preview" });
+    }
+  });
+
   // Print sheet layout endpoint - arrange multiple passport photos on a sheet
   app.post("/api/print-sheet", upload.single("image"), async (req, res) => {
     try {

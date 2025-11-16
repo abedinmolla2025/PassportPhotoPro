@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Camera, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/upload-zone";
 import { CanvasPreview } from "@/components/canvas-preview";
 import { PassportSizeSelector } from "@/components/passport-size-selector";
 import { PrintSheetSelector } from "@/components/print-sheet-selector";
+import { PrintSheetPreview } from "@/components/print-sheet-preview";
 import { BackgroundColorPicker } from "@/components/background-color-picker";
 import { AdjustmentSliders } from "@/components/adjustment-sliders";
 import { CropRotateTools } from "@/components/crop-rotate-tools";
@@ -13,7 +14,7 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { useToast } from "@/hooks/use-toast";
 import { useImageEditor } from "@/hooks/use-image-editor";
 import { removeImageBackground } from "@/lib/image-processing";
-import { processAndDownloadImage } from "@/lib/api-client";
+import { processAndDownloadImage, generatePrintSheetPreview } from "@/lib/api-client";
 import { Separator } from "@/components/ui/separator";
 import { Eraser, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import {
@@ -33,6 +34,11 @@ export default function PhotoEditor() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const previewTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const currentPreviewUrlRef = useRef<string | null>(null);
+  const previewRequestIdRef = useRef<number>(0);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     return () => {
@@ -42,8 +48,126 @@ export default function PhotoEditor() {
       if (state.processedUrl) {
         URL.revokeObjectURL(state.processedUrl);
       }
+      if (state.printSheetPreviewUrl) {
+        URL.revokeObjectURL(state.printSheetPreviewUrl);
+      }
     };
-  }, [state.originalUrl, state.processedUrl]);
+  }, [state.originalUrl, state.processedUrl, state.printSheetPreviewUrl]);
+
+  useEffect(() => {
+    if (previewTimeoutRef.current) {
+      clearTimeout(previewTimeoutRef.current);
+      previewTimeoutRef.current = null;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+
+    if (!state.printSheetEnabled || !state.printSheet || !state.originalFile) {
+      previewRequestIdRef.current += 1;
+      if (currentPreviewUrlRef.current) {
+        URL.revokeObjectURL(currentPreviewUrlRef.current);
+        currentPreviewUrlRef.current = null;
+      }
+      if (state.printSheetPreviewUrl) {
+        updateState({ printSheetPreviewUrl: null });
+      }
+      setIsGeneratingPreview(false);
+      return;
+    }
+
+    setIsGeneratingPreview(true);
+    previewRequestIdRef.current += 1;
+    const currentRequestId = previewRequestIdRef.current;
+
+    previewTimeoutRef.current = setTimeout(async () => {
+      if (!state.originalFile || !state.printSheet) {
+        if (currentRequestId === previewRequestIdRef.current) {
+          setIsGeneratingPreview(false);
+        }
+        return;
+      }
+
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
+      try {
+        const fileToProcess = state.backgroundRemoved && state.processedUrl
+          ? await fetch(state.processedUrl).then(r => r.blob()).then(b => new File([b], "preview.png", { type: "image/png" }))
+          : state.originalFile;
+
+        const previewUrl = await generatePrintSheetPreview(fileToProcess, {
+          format: "jpeg",
+          quality: 70,
+          adjustments: state.adjustments,
+          backgroundColor: state.backgroundRemoved ? state.backgroundColor : undefined,
+          rotation: state.rotation,
+          flipHorizontal: state.flipped.horizontal,
+          flipVertical: state.flipped.vertical,
+          passportWidthPx: state.passportSize.widthPx,
+          passportHeightPx: state.passportSize.heightPx,
+          printSheetWidthPx: state.printSheet.widthPx,
+          printSheetHeightPx: state.printSheet.heightPx,
+        }, signal);
+
+        if (currentRequestId === previewRequestIdRef.current) {
+          if (state.printSheetEnabled) {
+            if (currentPreviewUrlRef.current) {
+              URL.revokeObjectURL(currentPreviewUrlRef.current);
+            }
+            currentPreviewUrlRef.current = previewUrl;
+            updateState({ printSheetPreviewUrl: previewUrl });
+          } else {
+            URL.revokeObjectURL(previewUrl);
+            currentPreviewUrlRef.current = null;
+          }
+          setIsGeneratingPreview(false);
+        } else {
+          URL.revokeObjectURL(previewUrl);
+        }
+      } catch (error: unknown) {
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
+        if (currentRequestId === previewRequestIdRef.current) {
+          console.error("Preview generation error:", error);
+          toast({
+            title: "Preview failed",
+            description: "Could not generate print sheet preview",
+            variant: "destructive",
+          });
+          setIsGeneratingPreview(false);
+        }
+      }
+    }, 800);
+
+    return () => {
+      if (previewTimeoutRef.current) {
+        clearTimeout(previewTimeoutRef.current);
+        previewTimeoutRef.current = null;
+      }
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, [
+    state.printSheetEnabled,
+    state.printSheet?.id,
+    state.originalFile,
+    state.processedUrl,
+    state.backgroundRemoved,
+    state.backgroundColor,
+    state.adjustments.brightness,
+    state.adjustments.contrast,
+    state.adjustments.saturation,
+    state.rotation,
+    state.flipped.horizontal,
+    state.flipped.vertical,
+    state.passportSize.id,
+  ]);
 
   const handleImageSelect = useCallback(
     (file: File) => {
@@ -294,6 +418,13 @@ export default function PhotoEditor() {
                   />
                 </div>
               </div>
+
+              {state.printSheetEnabled && (
+                <PrintSheetPreview
+                  previewUrl={state.printSheetPreviewUrl}
+                  isLoading={isGeneratingPreview}
+                />
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 <div className="space-y-2 sm:space-y-3 lg:space-y-4">

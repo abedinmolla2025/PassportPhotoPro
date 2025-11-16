@@ -128,3 +128,40 @@ export async function resizeToPassportSize(
 
   return await response.blob();
 }
+
+export async function generatePrintSheetPreview(
+  file: File,
+  options: ProcessImageOptions,
+  signal?: AbortSignal
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("passportWidthPx", options.passportWidthPx!.toString());
+  formData.append("passportHeightPx", options.passportHeightPx!.toString());
+  formData.append("sheetWidthPx", options.printSheetWidthPx!.toString());
+  formData.append("sheetHeightPx", options.printSheetHeightPx!.toString());
+  formData.append("brightness", options.adjustments.brightness.toString());
+  formData.append("contrast", options.adjustments.contrast.toString());
+  formData.append("saturation", options.adjustments.saturation.toString());
+  formData.append("rotation", options.rotation.toString());
+  formData.append("flipHorizontal", options.flipHorizontal.toString());
+  formData.append("flipVertical", options.flipVertical.toString());
+  
+  if (options.backgroundColor) {
+    formData.append("backgroundColor", options.backgroundColor);
+  }
+
+  const response = await fetch("/api/print-sheet/preview", {
+    method: "POST",
+    body: formData,
+    signal,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to generate preview" }));
+    throw new Error(errorData.error || "Failed to generate preview");
+  }
+
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}

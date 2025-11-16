@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { UploadZone } from "@/components/upload-zone";
 import { CanvasPreview } from "@/components/canvas-preview";
 import { PassportSizeSelector } from "@/components/passport-size-selector";
+import { PrintSheetSelector } from "@/components/print-sheet-selector";
 import { BackgroundColorPicker } from "@/components/background-color-picker";
 import { AdjustmentSliders } from "@/components/adjustment-sliders";
 import { CropRotateTools } from "@/components/crop-rotate-tools";
@@ -20,7 +21,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { PassportSize, ExportFormat } from "@shared/schema";
+import type { PassportSize, ExportFormat, PrintSheet } from "@shared/schema";
 import { PASSPORT_SIZES } from "@shared/schema";
 
 export default function PhotoEditor() {
@@ -186,12 +187,16 @@ export default function PhotoEditor() {
             flipVertical: state.flipped.vertical,
             passportWidthPx: state.passportSize.widthPx > 0 ? state.passportSize.widthPx : undefined,
             passportHeightPx: state.passportSize.heightPx > 0 ? state.passportSize.heightPx : undefined,
+            printSheetWidthPx: state.printSheetEnabled && state.printSheet ? state.printSheet.widthPx : undefined,
+            printSheetHeightPx: state.printSheetEnabled && state.printSheet ? state.printSheet.heightPx : undefined,
+            enablePrintSheet: state.printSheetEnabled,
           },
           baseFilename
         );
+        const downloadType = state.printSheetEnabled ? "print sheet" : "photo";
         toast({
           title: "Download started",
-          description: `Your photo is being downloaded as ${format.toUpperCase()}`,
+          description: `Your ${downloadType} is being downloaded as ${format.toUpperCase()}`,
         });
       } catch (error) {
         console.error("Download error:", error);
@@ -262,7 +267,7 @@ export default function PhotoEditor() {
                   />
                 )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 lg:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
@@ -276,6 +281,21 @@ export default function PhotoEditor() {
                   />
                 </div>
 
+                <div className="space-y-2 sm:space-y-3 lg:space-y-4">
+                  <PrintSheetSelector
+                    selectedSheet={state.printSheet}
+                    onSheetChange={(sheet: PrintSheet | null) =>
+                      updateState({ printSheet: sheet })
+                    }
+                    enabled={state.printSheetEnabled}
+                    onEnabledChange={(enabled: boolean) =>
+                      updateState({ printSheetEnabled: enabled })
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
                 <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                   <div className="flex items-center justify-between gap-2">
                     <h2 className="text-base sm:text-lg font-semibold">Background</h2>

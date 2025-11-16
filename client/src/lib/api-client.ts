@@ -10,6 +10,9 @@ export interface ProcessImageOptions {
   flipVertical: boolean;
   passportWidthPx?: number;
   passportHeightPx?: number;
+  printSheetWidthPx?: number;
+  printSheetHeightPx?: number;
+  enablePrintSheet?: boolean;
 }
 
 export async function processAndDownloadImage(
@@ -17,6 +20,10 @@ export async function processAndDownloadImage(
   options: ProcessImageOptions,
   fileName: string
 ): Promise<void> {
+  if (options.enablePrintSheet && options.printSheetWidthPx && options.printSheetHeightPx && options.passportWidthPx && options.passportHeightPx) {
+    return downloadPrintSheet(file, options, fileName);
+  }
+
   const formData = new FormData();
   formData.append("image", file);
   formData.append("format", options.format);
@@ -51,6 +58,49 @@ export async function processAndDownloadImage(
   const a = document.createElement("a");
   a.href = url;
   a.download = `${fileName}.${options.format}`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadPrintSheet(
+  file: File,
+  options: ProcessImageOptions,
+  fileName: string
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("image", file);
+  formData.append("passportWidthPx", options.passportWidthPx!.toString());
+  formData.append("passportHeightPx", options.passportHeightPx!.toString());
+  formData.append("sheetWidthPx", options.printSheetWidthPx!.toString());
+  formData.append("sheetHeightPx", options.printSheetHeightPx!.toString());
+  formData.append("format", options.format);
+  formData.append("quality", options.quality.toString());
+  formData.append("brightness", options.adjustments.brightness.toString());
+  formData.append("contrast", options.adjustments.contrast.toString());
+  formData.append("saturation", options.adjustments.saturation.toString());
+  formData.append("rotation", options.rotation.toString());
+  formData.append("flipHorizontal", options.flipHorizontal.toString());
+  formData.append("flipVertical", options.flipVertical.toString());
+  
+  if (options.backgroundColor) {
+    formData.append("backgroundColor", options.backgroundColor);
+  }
+
+  const response = await fetch("/api/print-sheet", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ error: "Failed to create print sheet" }));
+    throw new Error(errorData.error || "Failed to create print sheet");
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${fileName}-sheet.${options.format}`;
   a.click();
   URL.revokeObjectURL(url);
 }

@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef } from "react";
-import type { PassportSize, ImageAdjustments } from "@shared/schema";
+import type { PassportSize, ImageAdjustments, PrintSheet } from "@shared/schema";
+import { PRINT_SHEET_SIZES } from "@shared/schema";
 
 export interface ImageEditorState {
   originalFile: File | null;
@@ -13,6 +14,8 @@ export interface ImageEditorState {
   rotation: number;
   flipped: { horizontal: boolean; vertical: boolean };
   cropPosition: { x: number; y: number };
+  printSheet: PrintSheet | null;
+  printSheetEnabled: boolean;
 }
 
 export function useImageEditor(initialPassportSize: PassportSize) {
@@ -28,6 +31,8 @@ export function useImageEditor(initialPassportSize: PassportSize) {
     rotation: 0,
     flipped: { horizontal: false, vertical: false },
     cropPosition: { x: 0, y: 0 },
+    printSheet: PRINT_SHEET_SIZES[2],
+    printSheetEnabled: false,
   });
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -84,6 +89,8 @@ export function useImageEditor(initialPassportSize: PassportSize) {
       rotation: 0,
       flipped: { horizontal: false, vertical: false },
       cropPosition: { x: 0, y: 0 },
+      printSheet: PRINT_SHEET_SIZES[2],
+      printSheetEnabled: false,
     });
   }, [state.originalUrl, state.processedUrl, initialPassportSize]);
 
